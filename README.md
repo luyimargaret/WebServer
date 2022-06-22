@@ -1,2 +1,2 @@
 # WebServer
-Linux系统下C++轻量级Web服务器。
+Linux系统下高并发服务器开发。
