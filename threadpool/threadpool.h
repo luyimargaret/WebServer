@@ -42,7 +42,6 @@ threadpool< T >::threadpool( int thread_number, int max_requests ) :
     {
         throw std::exception();
     }
-
     m_threads = new pthread_t[ m_thread_number ];
     if( ! m_threads )
     {
@@ -51,7 +50,8 @@ threadpool< T >::threadpool( int thread_number, int max_requests ) :
     //创建thread_number个线程，将他们都设置为脱离线程
     for ( int i = 0; i < thread_number; ++i )
     {
-        printf( "create the %dth thread\n", i );
+        //pthread_create（）第三个参数要求为静态函数
+        //循环创建线程，并将工作线程按要求进行运行
         if( pthread_create( m_threads + i, NULL, worker, this ) != 0 )
         {
             delete [] m_threads;
@@ -76,14 +76,16 @@ template< typename T >
 bool threadpool< T >::append( T* request )
 {
     //操作工作队列时一定要加锁，因为他被所有线程共享
-    m_queuelocker.lock();
+    m_queuelocker.lock();·
     if ( m_workqueue.size() > m_max_requests )
     {
         m_queuelocker.unlock();
         return false;
     }
+    //添加任务
     m_workqueue.push_back( request );
     m_queuelocker.unlock();
+    //信号量提醒有任务要处理
     m_queuestat.post();
     return true;
 }
@@ -91,23 +93,28 @@ bool threadpool< T >::append( T* request )
 template< typename T >
 void* threadpool< T >::worker( void* arg )
 {
+    //将参数强制转为线程池类，调用成员方法
     threadpool* pool = ( threadpool* )arg;
     pool->run();
     return pool;
 }
-
+//工作线程从请求队列中取出某个任务进行处理
 template< typename T >
 void threadpool< T >::run()
 {
     while ( ! m_stop )
     {
+        //信号量等待
         m_queuestat.wait();
+        //被唤醒后先加互斥锁
         m_queuelocker.lock();
         if ( m_workqueue.empty() )
         {
             m_queuelocker.unlock();
             continue;
         }
+        //请求队列中取出第一个任务
+        //将任务从队列中删除
         T* request = m_workqueue.front();
         m_workqueue.pop_front();
         m_queuelocker.unlock();
@@ -115,6 +122,7 @@ void threadpool< T >::run()
         {
             continue;
         }
+        //process(模板类中的方法，这里是http类)进行处理
         request->process();
     }
 }
