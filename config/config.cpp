@@ -1,4 +1,4 @@
-#include "config.h"
+#include "../config/config.h"
 
 Config::Config(){
     //端口号,默认9006
